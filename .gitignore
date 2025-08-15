@@ -32,6 +32,11 @@ MANIFEST
 *.manifest
 *.spec
 
+# Migration files
+*/migrations/*.py
+!*/migrations/__init__.py 
+
+
 # Installer logs
 pip-log.txt
 pip-delete-this-directory.txt
