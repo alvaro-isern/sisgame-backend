@@ -37,7 +37,7 @@ class ConsoleType(TimeStampedModel):
 class LocalSetting(TimeStampedModel):  # Configuración por tipo de dispositivo
     company_name = models.CharField(max_length=255)
     currency = models.CharField(max_length=10, default="USD")
-    minimum_time = models.PositiveIntegerField(help_text="Tiempo mínimo (minutos) para alquilar / jugar")
+    minimum_time_sessions = models.PositiveIntegerField()
 
     def __str__(self):
         return f"{self.company_name} - {self.device_type.name}"
@@ -199,7 +199,6 @@ class OpeningSalesBox(TimeStampedModel):
 class Sale(TimeStampedModel):
     client = models.ForeignKey(Person, on_delete=models.CASCADE, related_name="sales_client")
     user = models.ForeignKey(Person, on_delete=models.CASCADE, related_name="sales_user")
-    opening_sales_box = models.ForeignKey(OpeningSalesBox, on_delete=models.CASCADE, related_name="sales")
     session = models.ForeignKey(Session, on_delete=models.CASCADE, related_name="sales_session", null=True, blank=True)
     date_sale = models.DateField(auto_now_add=True)
     subtotal = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
@@ -218,6 +217,29 @@ class Sale(TimeStampedModel):
 
     def __str__(self):
         return f"Venta {self.id} - {self.client}"
+    
+class SaleDetail(TimeStampedModel):
+    sale = models.ForeignKey(Sale, on_delete=models.CASCADE, related_name="sale_details")
+    lot = models.ForeignKey(Lots, on_delete=models.CASCADE, related_name="sale_details_lot")
+    amount = models.PositiveIntegerField()
+    unit_price = models.DecimalField(max_digits=10, decimal_places=2)
+    discount = models.DecimalField(max_digits=10, decimal_places=2)
+    subtotal = models.DecimalField(max_digits=10, decimal_places=2)
 
+    def __str__(self):
+        return f"Detalle de Venta {self.id} - {self.sale.client.name}"
+    
 
+class SaleBoxMovement(TimeStampedModel):
+    opening_sales_box = models.ForeignKey(OpeningSalesBox, on_delete=models.CASCADE, related_name="movements_opening_sales_box")
+    sale = models.ForeignKey(Sale, on_delete=models.CASCADE, related_name="movements_sale")
+    movement_type = models.CharField(max_length=50, choices=[
+        ("entrada", "Entrada"),
+        ("salida", "Salida"),
+    ])
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    movement_date = models.DateField(auto_now_add=True)
+    is_active = models.BooleanField(default=True)
 
+    def __str__(self):
+        return f"Movimiento de Caja {self.id} - {self.opening_sales_box.sales_box.name}"
