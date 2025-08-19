@@ -37,7 +37,7 @@ class ConsoleType(TimeStampedModel):
 class LocalSetting(TimeStampedModel):  # Configuración por tipo de dispositivo
     company_name = models.CharField(max_length=255)
     currency = models.CharField(max_length=10, default="USD")
-    minimum_time_sessions = models.PositiveIntegerField()
+    minimum_time_sessions = models.PositiveIntegerField(null=True, blank=True)  # Tiempo mínimo de sesión en minutos
 
     def __str__(self):
         return f"{self.company_name} - {self.device_type.name}"
@@ -150,6 +150,11 @@ class ConsoleMaintenance(TimeStampedModel):
     maintenance_reason = models.CharField(max_length=255, choices=[
         ("reparación", "Reparación"),
         ("limpieza", "Limpieza"),
+        ("actualización", "Actualización"),
+        ("sobrecalentamiento", "Sobrecalentamiento"),
+        ("problemas de hardware", "Problemas de hardware"),
+        ("problemas de software", "Problemas de software"),
+        ("otro", "Otro"),
     ])
     start_date = models.DateField(null=True, blank=True)
     end_date = models.DateField(null=True, blank=True)
