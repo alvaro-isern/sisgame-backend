@@ -37,10 +37,11 @@ class ConsoleType(TimeStampedModel):
 class LocalSetting(TimeStampedModel):  # Configuración por tipo de dispositivo
     company_name = models.CharField(max_length=255)
     currency = models.CharField(max_length=10, default="USD")
-    minimum_time_sessions = models.PositiveIntegerField()
+    minimum_time_sessions = models.PositiveIntegerField(null=True, blank=True)  # Tiempo mínimo de sesión en minutos
+    free_accessories = models.PositiveIntegerField(default=2)  # Número de accesorios gratuitos por sesión
 
     def __str__(self):
-        return f"{self.company_name} - {self.device_type.name}"
+        return f"{self.company_name}"
 
 
 class Game(TimeStampedModel):
@@ -51,6 +52,11 @@ class Game(TimeStampedModel):
         ("rpg", "RPG"),
         ("shooter", "Shooter"),
         ("sports", "Deportes"),
+        ("strategy", "Estrategia"),
+        ("simulation", "Simulación"),
+        ("puzzle", "Puzzle"),
+        ("horror", "Horror"),
+        ("other", "Otro"),
     ])
     release_year = models.PositiveIntegerField()  # Solo año
     description = models.TextField(blank=True)
@@ -75,22 +81,29 @@ class ConsoleTypeGame(TimeStampedModel):
 
 
 class Category(TimeStampedModel):
-    group = models.CharField(max_length=100) 
     name = models.CharField(max_length=255)
+    type = models.CharField(max_length=50, choices=[
+        ("snack", "Snacks"),
+        ("bebida", "Bebidas"),
+        ("accesorio", "Accesorios"),
+    ])
 
     class Meta:
-        unique_together = ("group", "name")
+        verbose_name_plural = "Categories"
 
     def __str__(self):
-        return f"{self.group}:{self.name}"
+        return f"{self.type}: {self.name}"
 
 
 class Product(TimeStampedModel):
     name = models.CharField(max_length=255)
     category = models.ForeignKey(Category, on_delete=models.PROTECT, related_name="product_category")
     image = models.URLField(null=True, blank=True)
-    console_type = models.ForeignKey(ConsoleType, on_delete=models.PROTECT, related_name="product_console_type")
     is_active = models.BooleanField(default=True, db_index=True)
+    console_type = models.ForeignKey(ConsoleType, on_delete=models.PROTECT, 
+                                   related_name="product_console_type", 
+                                   null=True, blank=True)  # Solo para accesorios
+    is_accessory = models.BooleanField(default=False)  # Para identificar si es un accesorio
 
     class Meta:
         unique_together = ("name", "category")
@@ -133,16 +146,21 @@ class Lots(TimeStampedModel):
 
 class ConsoleReservations(TimeStampedModel):
     client = models.ForeignKey(Person, on_delete=models.CASCADE, related_name="reservations_client")
-    lots = models.OneToOneField(Lots, on_delete=models.CASCADE, related_name="reservations_lots")
+    lots = models.ForeignKey(Lots, on_delete=models.CASCADE, related_name="reservations_lots")
     reservation_date = models.DateField(auto_now_add=True)
     hour_count = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
     start_hour = models.DateTimeField(null=True, blank=True)
     end_hour = models.DateTimeField(null=True, blank=True)
+    accessory_count = models.PositiveIntegerField(default=2)  # Número de accesorios solicitados
     state = models.CharField(max_length=50, choices=[
         ("reservado", "Reservado"),
         ("cancelado", "Cancelado"),
+        ("completado", "Completado"),
     ], default="reservado")
     advance_payment = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+
+    def __str__(self):
+        return f"Reserva {self.id} - {self.client.name} - {self.lots.product.name}"
 
 class ConsoleMaintenance(TimeStampedModel):
     console = models.ForeignKey(ConsoleType, on_delete=models.CASCADE, related_name="maintenance_console")
@@ -150,6 +168,11 @@ class ConsoleMaintenance(TimeStampedModel):
     maintenance_reason = models.CharField(max_length=255, choices=[
         ("reparación", "Reparación"),
         ("limpieza", "Limpieza"),
+        ("actualización", "Actualización"),
+        ("sobrecalentamiento", "Sobrecalentamiento"),
+        ("problemas de hardware", "Problemas de hardware"),
+        ("problemas de software", "Problemas de software"),
+        ("otro", "Otro"),
     ])
     start_date = models.DateField(null=True, blank=True)
     end_date = models.DateField(null=True, blank=True)
@@ -157,20 +180,43 @@ class ConsoleMaintenance(TimeStampedModel):
     responsible = models.CharField(max_length=255, null=True, blank=True)
     observations = models.TextField(null=True, blank=True)
 
+class SessionAccessory(TimeStampedModel):
+    """Modelo para controlar accesorios usados en una sesión"""
+    session = models.ForeignKey('Session', on_delete=models.CASCADE, related_name='accessories')
+    product = models.ForeignKey(Product, on_delete=models.PROTECT)
+    quantity = models.PositiveIntegerField()
+    is_charged = models.BooleanField(default=False)  # False para mandos gratuitos, True para extras
+    price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+
+    def __str__(self):
+        return f"{self.session.id} - {self.product.name} x{self.quantity}"
+
 class Session(TimeStampedModel):
-    lots = models.OneToOneField(Lots, on_delete=models.CASCADE, related_name="sessions_lots")
+    lots = models.ForeignKey(Lots, on_delete=models.CASCADE, related_name="sessions_lots")
+    client = models.ForeignKey(Person, on_delete=models.PROTECT, related_name="client_sessions")
     hour_count = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
     session_date = models.DateField(auto_now_add=True)
     start_time = models.DateTimeField(null=True, blank=True)
     end_time = models.DateTimeField(null=True, blank=True)
     total_amount = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    accessory_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     state = models.CharField(max_length=50, choices=[
         ("en curso", "En curso"),
         ("finalizado", "Finalizado"),
     ], default="en curso")
 
     def __str__(self):
-        return f"Sesión {self.id} - {self.client}"
+        return f"Sesión {self.id} - {self.client.name}"
+
+    def calculate_total(self):
+        """Calcula el total incluyendo tiempo y accesorios extras"""
+        if self.hour_count and self.lots.price:
+            time_amount = self.hour_count * self.lots.price.sale_price
+            self.accessory_amount = sum(
+                acc.price for acc in self.accessories.filter(is_charged=True)
+            )
+            self.total_amount = time_amount + self.accessory_amount
+            self.save()
 
     
 class SalesBox(TimeStampedModel):
@@ -212,7 +258,6 @@ class Sale(TimeStampedModel):
     state = models.CharField(max_length=50, choices=[
         ("pendiente", "Pendiente"),
         ("completado", "Completado"),
-        ("cancelado", "Cancelado"),
     ], default="pendiente")
 
     def __str__(self):
