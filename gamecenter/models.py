@@ -14,19 +14,17 @@ class TimeStampedModel(models.Model):
 
 class Person(TimeStampedModel):
     name = models.CharField(max_length=255)
-    email = models.EmailField(unique=True)
     phone = models.CharField(max_length=25, blank=True, null=True)
-    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="person_user")
     is_client = models.BooleanField(default=False)
     client_type = models.CharField(max_length=50, choices=[
         ("regular", "Regular"),
         ("premium", "Premium"),
         ("vip", "VIP"),
     ], blank=True, null=True)
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="person", null=True, blank=True)
 
     def __str__(self):
         return self.name
-
 
 class ConsoleType(TimeStampedModel):
     name = models.CharField(max_length=255, unique=True)
@@ -184,19 +182,14 @@ class ConsoleMaintenance(TimeStampedModel):
     responsible = models.CharField(max_length=255, null=True, blank=True)
     observations = models.TextField(null=True, blank=True)
 
-class SessionAccessory(TimeStampedModel):
-    """Modelo para controlar accesorios usados en una sesión"""
-    session = models.ForeignKey('Session', on_delete=models.CASCADE, related_name='accessories')
-    product = models.ForeignKey(Product, on_delete=models.PROTECT)
-    quantity = models.PositiveIntegerField()
-    is_charged = models.BooleanField(default=False)  # False para mandos gratuitos, True para extras
-    price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+class SessionLots(TimeStampedModel):
+    session = models.ForeignKey('Session', on_delete=models.CASCADE, related_name='lots')
+    lots = models.ForeignKey(Lots, on_delete=models.CASCADE, related_name='sessions_lots')
 
     def __str__(self):
-        return f"{self.session.id} - {self.product.name} x{self.quantity}"
+        return f"{self.session.id} - {self.lots.product.name} x{self.lots.quantity}"
 
 class Session(TimeStampedModel):
-    lots = models.ForeignKey(Lots, on_delete=models.CASCADE, related_name="sessions_lots")
     client = models.ForeignKey(Person, on_delete=models.PROTECT, related_name="client_sessions")
     hour_count = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
     session_date = models.DateField(auto_now_add=True)
@@ -336,21 +329,9 @@ class Session(TimeStampedModel):
         # Calcular total
         self.total_amount = time_amount + self.accessory_amount
         self.save()
-    
-
-    
-class SalesBox(TimeStampedModel):
-    name = models.CharField(max_length=100, null=True, blank=True)
-    description = models.TextField(blank=True, null=True)
-    initial_amount = models.DecimalField(max_digits=10, decimal_places=2)
-    is_active = models.BooleanField(default=True, db_index=True)
-
-    def __str__(self):
-        return f"Caja {self.id} ({self.name})"
 
 
 class OpeningSalesBox(TimeStampedModel):
-    sales_box = models.ForeignKey(SalesBox, on_delete=models.CASCADE, related_name="opening_sales_box")
     user = models.ForeignKey(Person, on_delete=models.PROTECT, related_name="opening_sales_box")
     opening_date = models.DateField(auto_now_add=True)
     opening_amount = models.DecimalField(max_digits=10, decimal_places=2)
@@ -359,7 +340,7 @@ class OpeningSalesBox(TimeStampedModel):
     date = models.DateField(auto_now_add=True)
 
     def __str__(self):
-        return f"Apertura de Caja {self.sales_box.id} - {self.user.username}"
+        return f"Apertura de Caja {self.id} - {self.user.username}"
 
 
 class Sale(TimeStampedModel):
