@@ -2,7 +2,7 @@ from rest_framework import viewsets
 from rest_framework.decorators import action
 from django.contrib.auth.models import User
 from gamecenter.serializers import UserSerializer
-from gamecenter.actions import *
+# from gamecenter.actions import *  # Commented out as no actions are currently available
 from rest_framework.permissions import AllowAny
 from rest_framework.renderers import JSONRenderer
 
