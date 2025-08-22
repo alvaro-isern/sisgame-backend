@@ -1,7 +1,6 @@
 from django.db import models
 from django.core.exceptions import ValidationError
-from django.contrib.auth.models import User
-
+from django.contrib.auth.models import AbstractUser, Group, Permission
 
 class TimeStampedModel(models.Model):
     """Abstracto: agrega created_at / updated_at."""
@@ -18,7 +17,6 @@ class Person(TimeStampedModel):
     email = models.EmailField(unique=True, null=True, blank=True)
     dni = models.CharField(max_length=20, null=True, blank=True)
     phone = models.CharField(max_length=25, blank=True, null=True)
-    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="person_user", null=True, blank=True)
 
     def __str__(self):
         return f"{self.first_name} {self.last_name}"
@@ -42,9 +40,7 @@ class ConsoleType(TimeStampedModel):
     def __str__(self):
         return self.name
 
-
 class LocalSetting(TimeStampedModel):  # Configuración por tipo de dispositivo
-    company_name = models.CharField(max_length=255)
     currency = models.CharField(max_length=10, default="PEN")
     minimum_time_sessions = models.PositiveIntegerField(null=True, blank=True)  # Tiempo mínimo de sesión en minutos
     free_accessories = models.PositiveIntegerField(default=2)  # Número de accesorios gratuitos por sesión
@@ -52,9 +48,38 @@ class LocalSetting(TimeStampedModel):  # Configuración por tipo de dispositivo
     def __str__(self):
         return f"{self.company_name}"
 
+class Subsidiary(TimeStampedModel):
+    name = models.CharField(max_length=255, null=True, blank=True)
+    address = models.CharField(max_length=255, null=True, blank=True)
+    contact_number = models.CharField(max_length=25, blank=True, null=True)
+    date_opened = models.DateField(null=True, blank=True)
+    local_setting = models.ForeignKey(LocalSetting, on_delete=models.CASCADE, related_name="subsidiary_localsetting")
+    is_main = models.BooleanField(default=False)
+
+    def __str__(self):
+        return self.name
+
+class User(AbstractUser):
+    person = models.ForeignKey(Person, on_delete=models.CASCADE, related_name="user_person", null=True, blank=True)
+    subsidiary = models.ForeignKey(Subsidiary, on_delete=models.CASCADE, related_name="user_subsidiary", null=True, blank=True)
+    groups = models.ManyToManyField(
+        Group,
+        related_name="user_groups",  # <-- Cambia el related_name
+        blank=True,
+        help_text="The groups this user belongs to.",
+        verbose_name="groups",
+    )
+    user_permissions = models.ManyToManyField(
+        Permission,
+        related_name="user_permissions",
+        blank=True,
+        help_text="Specific permissions for this user.",
+        verbose_name="user permissions",
+    )
+
 
 class Game(TimeStampedModel):
-    name = models.CharField(max_length=255)
+    name = models.CharField(max_length=255, null=True, blank=True)
     gender = models.CharField(max_length=50, choices=[
         ("action", "Acción"),
         ("adventure", "Aventura"),
@@ -91,10 +116,10 @@ class ConsoleTypeGame(TimeStampedModel):
 
 class Category(TimeStampedModel):
     name = models.CharField(max_length=255)
-    type = models.CharField(max_length=50, choices=[
-        ("snack", "Snacks"),
-        ("bebida", "Bebidas"),
-        ("accesorio", "Accesorios"),
+    group = models.CharField(max_length=50, choices=[
+        ("comestibles", "Comestibles"),
+        ("dispositivos", "Dispositivos"),
+        ("accesorios", "Accesorios"),
     ], null=True, blank=True)
 
     class Meta:
@@ -112,7 +137,6 @@ class Product(TimeStampedModel):
     console_type = models.ForeignKey(ConsoleType, on_delete=models.PROTECT, 
                                    related_name="product_console_type", 
                                    null=True, blank=True)  # Solo para accesorios
-    is_accessory = models.BooleanField(default=False)  # Para identificar si es un accesorio
 
     class Meta:
         unique_together = ("name", "category")
