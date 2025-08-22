@@ -13,18 +13,28 @@ class TimeStampedModel(models.Model):
 
 
 class Person(TimeStampedModel):
-    name = models.CharField(max_length=255)
+    first_name = models.CharField(max_length=255, null=True, blank=True)
+    last_name = models.CharField(max_length=255, null=True, blank=True)
+    email = models.EmailField(unique=True, null=True, blank=True)
+    dni = models.CharField(max_length=20, null=True, blank=True)
     phone = models.CharField(max_length=25, blank=True, null=True)
-    is_client = models.BooleanField(default=False)
-    client_type = models.CharField(max_length=50, choices=[
-        ("regular", "Regular"),
-        ("premium", "Premium"),
-        ("vip", "VIP"),
-    ], blank=True, null=True)
-    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="person", null=True, blank=True)
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="person_user", null=True, blank=True)
+
+    def __str__(self):
+        return f"{self.first_name} {self.last_name}"
+
+class MembershipType(TimeStampedModel):
+    name = models.CharField(max_length=255, unique=True)
 
     def __str__(self):
         return self.name
+
+class PersonMembership(TimeStampedModel):
+    person = models.ForeignKey(Person, on_delete=models.CASCADE, related_name="personmembership_person")
+    membership_type = models.ForeignKey(MembershipType, on_delete=models.CASCADE, related_name="personmembership_membershiptype")
+
+    def __str__(self):
+        return f"{self.person.name} - {self.membership_type.name}"
 
 class ConsoleType(TimeStampedModel):
     name = models.CharField(max_length=255, unique=True)
@@ -35,7 +45,7 @@ class ConsoleType(TimeStampedModel):
 
 class LocalSetting(TimeStampedModel):  # Configuración por tipo de dispositivo
     company_name = models.CharField(max_length=255)
-    currency = models.CharField(max_length=10, default="USD")
+    currency = models.CharField(max_length=10, default="PEN")
     minimum_time_sessions = models.PositiveIntegerField(null=True, blank=True)  # Tiempo mínimo de sesión en minutos
     free_accessories = models.PositiveIntegerField(default=2)  # Número de accesorios gratuitos por sesión
 
@@ -147,8 +157,8 @@ class Lots(TimeStampedModel):
         return f"Lot {self.lot_number} - {self.product.name}"
 
 class ConsoleReservations(TimeStampedModel):
-    client = models.ForeignKey(Person, on_delete=models.CASCADE, related_name="reservations_client")
-    lots = models.ForeignKey(Lots, on_delete=models.CASCADE, related_name="reservations_lots")
+    client = models.ForeignKey(Person, on_delete=models.CASCADE, related_name="consolereservations_client")
+    lots = models.ForeignKey(Lots, on_delete=models.CASCADE, related_name="consolereservations_lots")
     reservation_date = models.DateField(auto_now_add=True)
     hour_count = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
     start_hour = models.DateTimeField(null=True, blank=True)
@@ -182,12 +192,6 @@ class ConsoleMaintenance(TimeStampedModel):
     responsible = models.CharField(max_length=255, null=True, blank=True)
     observations = models.TextField(null=True, blank=True)
 
-class SessionLots(TimeStampedModel):
-    session = models.ForeignKey('Session', on_delete=models.CASCADE, related_name='lots')
-    lots = models.ForeignKey(Lots, on_delete=models.CASCADE, related_name='sessions_lots')
-
-    def __str__(self):
-        return f"{self.session.id} - {self.lots.product.name} x{self.lots.quantity}"
 
 class Session(TimeStampedModel):
     client = models.ForeignKey(Person, on_delete=models.PROTECT, related_name="client_sessions")
@@ -202,134 +206,141 @@ class Session(TimeStampedModel):
         ("finalizado", "Finalizado"),
     ], default="en curso")
 
-    def assign_accessories(self, requested_accessories):
-        """
-        Asigna accesorios gratuitos y extras según el tipo de consola.
-        requested_accessories: dict con {product_id: cantidad}
-        """
-        console_type = self.lots.product.console_type
-        console_name = console_type.name.lower()
+    # def assign_accessories(self, requested_accessories):
+    #     """
+    #     Asigna accesorios gratuitos y extras según el tipo de consola.
+    #     requested_accessories: dict con {product_id: cantidad}
+    #     """
+    #     console_type = self.lots.product.console_type
+    #     console_name = console_type.name.lower()
 
-        # Obtén la configuración local
-        local_setting = LocalSetting.objects.first()
-        if not local_setting:
-            raise ValidationError("No hay configuración local definida")
+    #     # Obtén la configuración local
+    #     local_setting = LocalSetting.objects.first()
+    #     if not local_setting:
+    #         raise ValidationError("No hay configuración local definida")
 
-        # Reglas para PlayStation
-        if "playstation" in console_name:
-            mandos = Product.objects.filter(
-                console_type=console_type,
-                is_accessory=True,
-                name__icontains="mando"
-            )
+    #     # Reglas para PlayStation
+    #     if "playstation" in console_name:
+    #         mandos = Product.objects.filter(
+    #             console_type=console_type,
+    #             is_accessory=True,
+    #             name__icontains="mando"
+    #         )
             
-            for mando in mandos:
-                cantidad_pedida = requested_accessories.get(str(mando.id), 0)
-                if cantidad_pedida > 0:
-                    # Asignar mandos gratuitos
-                    free_qty = min(cantidad_pedida, local_setting.free_accessories)
-                    if free_qty > 0:
-                        SessionAccessory.objects.create(
-                            session=self,
-                            product=mando,
-                            quantity=free_qty,
-                            is_charged=False,
-                            price=0
-                        )
+    #         for mando in mandos:
+    #             cantidad_pedida = requested_accessories.get(str(mando.id), 0)
+    #             if cantidad_pedida > 0:
+    #                 # Asignar mandos gratuitos
+    #                 free_qty = min(cantidad_pedida, local_setting.free_accessories)
+    #                 if free_qty > 0:
+    #                     SessionAccessory.objects.create(
+    #                         session=self,
+    #                         product=mando,
+    #                         quantity=free_qty,
+    #                         is_charged=False,
+    #                         price=0
+    #                     )
                     
-                    # Asignar mandos extras (cobrados)
-                    extra_qty = cantidad_pedida - free_qty
-                    if extra_qty > 0:
-                        precio = mando.prices.filter(
-                            unit_measurement="unidad",
-                            is_active=True
-                        ).first()
-                        if not precio:
-                            raise ValidationError(f"No hay precio definido para {mando.name}")
+    #                 # Asignar mandos extras (cobrados)
+    #                 extra_qty = cantidad_pedida - free_qty
+    #                 if extra_qty > 0:
+    #                     precio = mando.prices.filter(
+    #                         unit_measurement="unidad",
+    #                         is_active=True
+    #                     ).first()
+    #                     if not precio:
+    #                         raise ValidationError(f"No hay precio definido para {mando.name}")
                         
-                        SessionAccessory.objects.create(
-                            session=self,
-                            product=mando,
-                            quantity=extra_qty,
-                            is_charged=True,
-                            price=precio.sale_price
-                        )
+    #                     SessionAccessory.objects.create(
+    #                         session=self,
+    #                         product=mando,
+    #                         quantity=extra_qty,
+    #                         is_charged=True,
+    #                         price=precio.sale_price
+    #                     )
 
-        # Reglas para PC
-        elif "pc" in console_name:
-            # Asignar teclado y mouse gratuitos
-            for acc_type in ["teclado", "mouse"]:
-                acc = Product.objects.filter(
-                    console_type=console_type,
-                    is_accessory=True,
-                    name__icontains=acc_type
-                ).first()
+    #     # Reglas para PC
+    #     elif "pc" in console_name:
+    #         # Asignar teclado y mouse gratuitos
+    #         for acc_type in ["teclado", "mouse"]:
+    #             acc = Product.objects.filter(
+    #                 console_type=console_type,
+    #                 is_accessory=True,
+    #                 name__icontains=acc_type
+    #             ).first()
                 
-                if acc:
-                    SessionAccessory.objects.create(
-                        session=self,
-                        product=acc,
-                        quantity=1,
-                        is_charged=False,
-                        price=0
-                    )
+    #             if acc:
+    #                 SessionAccessory.objects.create(
+    #                     session=self,
+    #                     product=acc,
+    #                     quantity=1,
+    #                     is_charged=False,
+    #                     price=0
+    #                 )
             
-            # Procesar accesorios extras solicitados
-            for pid, qty in requested_accessories.items():
-                if qty > 0:
-                    product = Product.objects.get(id=pid)
-                    # Si no es el teclado o mouse base
-                    if not (product.name.lower().startswith(("teclado", "mouse"))):
-                        precio = product.prices.filter(
-                            unit_measurement="unidad",
-                            is_active=True
-                        ).first()
-                        if not precio:
-                            raise ValidationError(f"No hay precio definido para {product.name}")
+    #         # Procesar accesorios extras solicitados
+    #         for pid, qty in requested_accessories.items():
+    #             if qty > 0:
+    #                 product = Product.objects.get(id=pid)
+    #                 # Si no es el teclado o mouse base
+    #                 if not (product.name.lower().startswith(("teclado", "mouse"))):
+    #                     precio = product.prices.filter(
+    #                         unit_measurement="unidad",
+    #                         is_active=True
+    #                     ).first()
+    #                     if not precio:
+    #                         raise ValidationError(f"No hay precio definido para {product.name}")
                         
-                        SessionAccessory.objects.create(
-                            session=self,
-                            product=product,
-                            quantity=qty,
-                            is_charged=True,
-                            price=precio.sale_price
-                        )    
-    def clean(self):
-        console = self.lots.product.console_type
-        maintance = ConsoleMaintenance.objects.filter(
-            console=console,
-            end_date__isnull=True
-        ).exists()
-        if maintance:
-            raise ValidationError(f"La consola {console.name} está en mantenimiento y no puede ser usada.")
+    #                     SessionAccessory.objects.create(
+    #                         session=self,
+    #                         product=product,
+    #                         quantity=qty,
+    #                         is_charged=True,
+    #                         price=precio.sale_price
+    #                     )    
+    # def clean(self):
+    #     console = self.lots.product.console_type
+    #     maintance = ConsoleMaintenance.objects.filter(
+    #         console=console,
+    #         end_date__isnull=True
+    #     ).exists()
+    #     if maintance:
+    #         raise ValidationError(f"La consola {console.name} está en mantenimiento y no puede ser usada.")
+
+    # def __str__(self):
+    #     return f"Sesión {self.id} - {self.client.name}"
+
+    # def calculate_total(self):
+    #     """Calcula el total incluyendo tiempo y accesorios extras"""
+    #     if not self.hour_count:
+    #         raise ValidationError("Debe especificar la cantidad de horas")
+
+    #     # Obtener precio activo para el lote
+    #     price = self.lots.price
+    #     if not price or not price.is_active:
+    #         raise ValidationError("No hay un precio activo para esta consola")
+
+    #     # Calcular monto por tiempo
+    #     time_amount = float(self.hour_count) * float(price.sale_price)
+
+    #     # Calcular monto por accesorios extras
+    #     self.accessory_amount = sum(
+    #         float(acc.price) * acc.quantity
+    #         for acc in self.accessories.filter(is_charged=True)
+    #         if acc.price is not None
+    #     )
+
+    #     # Calcular total
+    #     self.total_amount = time_amount + self.accessory_amount
+    #     self.save()
+
+
+class SessionLots(TimeStampedModel):
+    session = models.ForeignKey(Session, on_delete=models.CASCADE, related_name='lots', null=True, blank=True)
+    lots = models.ForeignKey(Lots, on_delete=models.CASCADE, related_name='sessions_lots', null=True, blank=True)
 
     def __str__(self):
-        return f"Sesión {self.id} - {self.client.name}"
-
-    def calculate_total(self):
-        """Calcula el total incluyendo tiempo y accesorios extras"""
-        if not self.hour_count:
-            raise ValidationError("Debe especificar la cantidad de horas")
-
-        # Obtener precio activo para el lote
-        price = self.lots.price
-        if not price or not price.is_active:
-            raise ValidationError("No hay un precio activo para esta consola")
-
-        # Calcular monto por tiempo
-        time_amount = float(self.hour_count) * float(price.sale_price)
-
-        # Calcular monto por accesorios extras
-        self.accessory_amount = sum(
-            float(acc.price) * acc.quantity
-            for acc in self.accessories.filter(is_charged=True)
-            if acc.price is not None
-        )
-
-        # Calcular total
-        self.total_amount = time_amount + self.accessory_amount
-        self.save()
-
+        return f"{self.session.id} - {self.lots.product.name} x{self.lots.quantity}"
 
 class OpeningSalesBox(TimeStampedModel):
     user = models.ForeignKey(Person, on_delete=models.PROTECT, related_name="opening_sales_box")
