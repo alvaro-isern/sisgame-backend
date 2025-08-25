@@ -7,4 +7,4 @@ router.register(r'openingsalesbox', OpeningSalesBoxViewSet, basename='openingsal
 router.register(r'person', PersonViewSet, basename='person')
 router.register(r'user', UserViewSet, basename='user')
 router.register(r'subsidiary', SubsidiaryViewSet, basename='subsidiary')
-router.register(r'localsettings', LocalSettingsViewSet, basename='localsettings')
+#router.register(r'localsettings', LocalSettingsViewSet, basename='localsettings')
