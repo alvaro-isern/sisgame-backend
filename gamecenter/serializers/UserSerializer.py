@@ -1,21 +1,22 @@
 import rest_framework.serializers as serializers
-from gamecenter.models import Person
-from django.contrib.auth.models import User
+from gamecenter.models import Person, Subsidiary, User
 from gamecenter.serializers import PersonSerializer
 
 class UserSerializer(serializers.ModelSerializer):
     username = serializers.CharField()
     password = serializers.CharField(write_only=True)    
     person = serializers.PrimaryKeyRelatedField(queryset=Person.objects.all(), required=False, allow_null=True)
+    subsidiary = serializers.PrimaryKeyRelatedField(queryset=Subsidiary.objects.all(), required=False, allow_null=True)
 
     class Meta:
         model = User
-        fields = ['id', 'username', 'password', 'person']
+        fields = ['id', 'username', 'password', 'person', 'subsidiary']
         read_only_fields = ['id']
 
     def create(self, validated_data):
         # Remove the person field from validated_data since User model doesn't have it
         person = validated_data.pop('person', None)
+        subsidiary = validated_data.pop('subsidiary', None)
         
         # Initialize user data with defaults
         user_data = {
@@ -47,9 +48,8 @@ class UserSerializer(serializers.ModelSerializer):
         
         # If a person was provided, associate it with the user
         if person:
-            person.user = user
-            person.save()
-            
+            user.person = person
+            user.save()
         return user
 
     def update(self, instance, validated_data):
@@ -68,16 +68,16 @@ class UserSerializer(serializers.ModelSerializer):
         if person is not None:
             # First, remove any existing association
             try:
-                existing_person = Person.objects.get(user=instance)
-                existing_person.user = None
-                existing_person.save()
+                if instance.person:
+                    instance.person = None
+                    instance.save()
             except Person.DoesNotExist:
                 pass
             
             # Then set the new association and sync data
             if person:
-                person.user = instance
-                person.save()
+                instance.person = person
+                instance.save()
                 
                 # Sync person data to user fields
                 if person.first_name:
@@ -95,10 +95,9 @@ class UserSerializer(serializers.ModelSerializer):
         representation = super().to_representation(instance)
         
         # Add the person data
-        try:
-            person = Person.objects.get(user=instance)
-            representation['person'] = PersonSerializer(person).data
-        except Person.DoesNotExist:
+        if instance.person:
+            representation['person'] = PersonSerializer(instance.person).data
+        else:
             representation['person'] = None
             
         return representation

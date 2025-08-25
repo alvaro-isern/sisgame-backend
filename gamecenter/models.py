@@ -40,20 +40,24 @@ class ConsoleType(TimeStampedModel):
     def __str__(self):
         return self.name
 
-class LocalSetting(TimeStampedModel):  # Configuración por tipo de dispositivo
-    currency = models.CharField(max_length=10, default="PEN")
-    minimum_time_sessions = models.PositiveIntegerField(null=True, blank=True)  # Tiempo mínimo de sesión en minutos
-    free_accessories = models.PositiveIntegerField(default=2)  # Número de accesorios gratuitos por sesión
+class LocalSettings(TimeStampedModel):  # Configuración por tipo de dispositivo
+    currency = models.CharField(max_length=10, default="PEN", choices=[
+        ("PEN", "PEN"),
+        ("USD", "USD"),
+        ("EUR", "EUR"),
+        ("BRL", "BRL")
+    ])  # Moneda local
+    minimum_time_sessions = models.PositiveIntegerField(null=True, blank=True)
 
-    def __str__(self):
-        return f"{self.company_name}"
+    def __str__(self):  # Tiempo mínimo de sesión en minutos
+        return f"{self.minimum_time_sessions} minutos - {self.currency}"
 
 class Subsidiary(TimeStampedModel):
     name = models.CharField(max_length=255, null=True, blank=True)
     address = models.CharField(max_length=255, null=True, blank=True)
     contact_number = models.CharField(max_length=25, blank=True, null=True)
     date_opened = models.DateField(null=True, blank=True)
-    local_setting = models.ForeignKey(LocalSetting, on_delete=models.CASCADE, related_name="subsidiary_localsetting")
+    local_setting = models.ForeignKey(LocalSettings, on_delete=models.CASCADE, related_name="subsidiary_localsetting")
     is_main = models.BooleanField(default=False)
 
     def __str__(self):
