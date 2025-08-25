@@ -2,3 +2,4 @@ from .OpeningSalesBoxSerializer import OpeningSalesBoxSerializer
 from .PersonSerializer import PersonSerializer
 from .UserSerializer import UserSerializer
 from .LocalSettingsSerializer import LocalSettingsSerializer
+from .SubsidiarySerializer import SubsidiarySerializer
