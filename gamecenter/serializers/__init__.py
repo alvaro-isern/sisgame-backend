@@ -1,5 +1,4 @@
 from .OpeningSalesBoxSerializer import OpeningSalesBoxSerializer
 from .PersonSerializer import PersonSerializer
 from .UserSerializer import UserSerializer
-from .SubsidiarySerializer import SubsidiarySerializer
 from .LocalSettingsSerializer import LocalSettingsSerializer

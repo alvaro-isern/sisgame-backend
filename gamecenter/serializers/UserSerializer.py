@@ -1,5 +1,6 @@
 import rest_framework.serializers as serializers
 from gamecenter.models import Person, Subsidiary, User
+from .SubsidiarySerializer import SubsidiarySerializer
 from gamecenter.serializers import PersonSerializer
 
 class UserSerializer(serializers.ModelSerializer):
@@ -50,11 +51,18 @@ class UserSerializer(serializers.ModelSerializer):
         if person:
             user.person = person
             user.save()
+            
+        # If a subsidiary was provided, associate it with the user
+        if subsidiary:
+            user.subsidiary = subsidiary
+            user.save()
+            
         return user
 
     def update(self, instance, validated_data):
-        # Remove the person field from validated_data
+        # Remove the person and subsidiary fields from validated_data
         person = validated_data.pop('person', None)
+        subsidiary = validated_data.pop('subsidiary', None)
         
         # Update user fields
         for attr, value in validated_data.items():
@@ -87,6 +95,11 @@ class UserSerializer(serializers.ModelSerializer):
                 if person.email:
                     instance.email = person.email
                 instance.save()
+        
+        # Update subsidiary association if provided
+        if subsidiary is not None:
+            instance.subsidiary = subsidiary
+            instance.save()
                 
         return instance
 
@@ -99,5 +112,11 @@ class UserSerializer(serializers.ModelSerializer):
             representation['person'] = PersonSerializer(instance.person).data
         else:
             representation['person'] = None
+            
+        # Add the subsidiary data
+        if instance.subsidiary:
+            representation['subsidiary'] = SubsidiarySerializer(instance.subsidiary).data
+        else:
+            representation['subsidiary'] = None
             
         return representation
