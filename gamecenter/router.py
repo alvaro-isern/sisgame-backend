@@ -11,3 +11,4 @@ router.register(r'localsettings', LocalSettingsViewSet, basename='localsettings'
 router.register(r'category', CategoryViewSet, basename='category')
 router.register(r'product', ProductViewSet, basename='product')
 router.register(r'lot', LotViewSet, basename='lot')
+router.register(r'sessions', SessionsViewSet, basename='sessions')
