@@ -34,11 +34,6 @@ class PersonMembership(TimeStampedModel):
     def __str__(self):
         return f"{self.person.name} - {self.membership_type.name}"
 
-class ConsoleType(TimeStampedModel):
-    name = models.CharField(max_length=255, unique=True)
-
-    def __str__(self):
-        return self.name
 
 class LocalSettings(TimeStampedModel):  # Configuración por tipo de dispositivo
     currency = models.CharField(max_length=10, default="PEN", choices=[
@@ -107,15 +102,7 @@ class Game(TimeStampedModel):
     def __str__(self):
         return self.name
 
-class ConsoleTypeGame(TimeStampedModel):
-    console_type = models.ForeignKey(ConsoleType, on_delete=models.CASCADE, related_name="console_games")
-    game = models.ForeignKey(Game, on_delete=models.CASCADE, related_name="console_types")
 
-    class Meta:
-        unique_together = ("console_type", "game")
-
-    def __str__(self):
-        return f"{self.console_type.name} - {self.game.name}"
 
 
 class Category(TimeStampedModel):
@@ -130,7 +117,7 @@ class Category(TimeStampedModel):
         verbose_name_plural = "Categories"
 
     def __str__(self):
-        return f"{self.type}: {self.name}"
+        return f"{self.group}: {self.name}"
 
 
 class Product(TimeStampedModel):
@@ -138,9 +125,6 @@ class Product(TimeStampedModel):
     category = models.ForeignKey(Category, on_delete=models.PROTECT, related_name="product_category")
     image = models.URLField(null=True, blank=True)
     is_active = models.BooleanField(default=True, db_index=True)
-    console_type = models.ForeignKey(ConsoleType, on_delete=models.PROTECT, 
-                                   related_name="product_console_type", 
-                                   null=True, blank=True)  # Solo para accesorios
 
     class Meta:
         unique_together = ("name", "category")
@@ -157,7 +141,6 @@ class Price(TimeStampedModel):
     ])
     sale_price = models.DecimalField(max_digits=10, decimal_places=2)
     purchase_price = models.DecimalField(max_digits=10, decimal_places=2)
-    is_active = models.BooleanField(default=True)
 
     def __str__(self):
         return f"{self.product.name} - {self.sale_price} por {self.unit_measurement}"
@@ -203,7 +186,7 @@ class ConsoleReservations(TimeStampedModel):
         return f"Reserva {self.id} - {self.client.name} - {self.lots.product.name}"
 
 class ConsoleMaintenance(TimeStampedModel):
-    console = models.ForeignKey(ConsoleType, on_delete=models.CASCADE, related_name="maintenance_console")
+    console = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="maintenance_console")
     maintenance_date = models.DateField(auto_now_add=True)
     maintenance_reason = models.CharField(max_length=255, choices=[
         ("reparación", "Reparación"),
@@ -235,7 +218,6 @@ class Session(TimeStampedModel):
     ], default="en curso")
 
 
-
 class SessionLots(TimeStampedModel):
     session = models.ForeignKey(Session, on_delete=models.CASCADE, related_name='lots', null=True, blank=True)
     lots = models.ForeignKey(Lots, on_delete=models.CASCADE, related_name='sessions_lots', null=True, blank=True)
@@ -247,8 +229,8 @@ class OpeningSalesBox(TimeStampedModel):
     user = models.ForeignKey(Person, on_delete=models.PROTECT, related_name="opening_sales_box")
     opening_date = models.DateTimeField(auto_now_add=True)
     opening_amount = models.DecimalField(max_digits=10, decimal_places=2)
-    closing_date = models.DateTimeField(null=True, blank=True)
-    closing_amount = models.DecimalField(max_digits=10,decimal_places=2,null=True, blank=True)
+    closing_date = models.DateField(null=True, blank=True)
+    closing_amount = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     date = models.DateField(auto_now_add=True)
 
     def __str__(self):

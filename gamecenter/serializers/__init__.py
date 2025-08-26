@@ -2,4 +2,7 @@ from .OpeningSalesBoxSerializer import OpeningSalesBoxSerializer
 from .PersonSerializer import PersonSerializer
 from .UserSerializer import UserSerializer
 from .LocalSettingsSerializer import LocalSettingsSerializer
+from .CategorySerializar import CategorySerializer
+from .ProductSerializer import ProductSerializer
+from .LotsSerializer import LotsSerializer
 from .SubsidiarySerializer import SubsidiarySerializer
