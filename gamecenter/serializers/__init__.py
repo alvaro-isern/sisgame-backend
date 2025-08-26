@@ -3,3 +3,6 @@ from .PersonSerializer import PersonSerializer
 from .UserSerializer import UserSerializer
 from .SubsidiarySerializer import SubsidiarySerializer
 from .LocalSettingsSerializer import LocalSettingsSerializer
+from .CategorySerializar import CategorySerializer
+from .ProductSerializer import ProductSerializer
+from .LotsSerializer import LotsSerializer
