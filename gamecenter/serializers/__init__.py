@@ -6,3 +6,6 @@ from .CategorySerializar import CategorySerializer
 from .ProductSerializer import ProductSerializer
 from .LotsSerializer import LotsSerializer
 from .SubsidiarySerializer import SubsidiarySerializer
+from .SessionSerializer import SessionSerializer
+from .SaleSerializer import SaleSerializer
+from .GameSerializer import GameSerializer

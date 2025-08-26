@@ -102,9 +102,6 @@ class Game(TimeStampedModel):
     def __str__(self):
         return self.name
 
-
-
-
 class Category(TimeStampedModel):
     name = models.CharField(max_length=255)
     group = models.CharField(max_length=50, choices=[
