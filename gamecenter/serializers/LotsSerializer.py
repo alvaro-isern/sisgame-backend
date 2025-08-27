@@ -5,7 +5,7 @@ from gamecenter.serializers.PriceSerializer import PriceSerializer
 class CustomPriceSerializer(serializers.ModelSerializer):
     class Meta:
         model = Price
-        exclude = ('product',)  # Exclude product field from price form
+        fields = ['id', 'unit_measurement', 'sale_price', 'purchase_price']
         
 class LotsSerializer(serializers.ModelSerializer):
     price = CustomPriceSerializer()
