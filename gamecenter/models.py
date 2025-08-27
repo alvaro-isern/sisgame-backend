@@ -130,7 +130,6 @@ class Product(TimeStampedModel):
         return self.name
 
 class Price(TimeStampedModel):
-    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="prices")
     unit_measurement = models.CharField(max_length=100, choices=[
         ("unidad", "Unidad"),
         ("min", "Minutos"),
