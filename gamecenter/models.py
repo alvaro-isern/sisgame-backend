@@ -129,6 +129,16 @@ class Product(TimeStampedModel):
     def __str__(self):
         return self.name
 
+class ProductGame(TimeStampedModel):
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="product_game")
+    game = models.ForeignKey(Game, on_delete=models.CASCADE, related_name="game_product")
+
+    class Meta:
+        unique_together = ("product", "game")
+
+    def __str__(self):
+        return f"{self.product.name} - {self.game.name}"
+
 class Price(TimeStampedModel):
     unit_measurement = models.CharField(max_length=100, choices=[
         ("unidad", "Unidad"),
@@ -202,7 +212,7 @@ class ConsoleMaintenance(TimeStampedModel):
 
 class Session(TimeStampedModel):
     client = models.ForeignKey(Person, on_delete=models.PROTECT, related_name="client_sessions")
-    hour_count = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    is_free_session = models.BooleanField(default=False)
     session_date = models.DateField(auto_now_add=True)
     start_time = models.DateTimeField(null=True, blank=True)
     end_time = models.DateTimeField(null=True, blank=True)
@@ -235,6 +245,7 @@ class OpeningSalesBox(TimeStampedModel):
 
 class Sale(TimeStampedModel):
     client = models.ForeignKey(Person, on_delete=models.CASCADE, related_name="sales_client")
+    is_anonymous = models.BooleanField(default=False)
     user = models.ForeignKey(Person, on_delete=models.CASCADE, related_name="sales_user")
     session = models.ForeignKey(Session, on_delete=models.CASCADE, related_name="sales_session", null=True, blank=True)
     date_sale = models.DateField(auto_now_add=True)
