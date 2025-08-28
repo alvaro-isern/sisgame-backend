@@ -475,7 +475,7 @@ class Command(BaseCommand):
             
             session = Session.objects.create(
                 client=random.choice(persons),
-                hour_count=hour_count,
+                number_hours=int(hour_count),
                 start_time=start_time,
                 end_time=start_time + timedelta(hours=float(hour_count)) if i < 6 else None,
                 total_amount=hour_count * Decimal('10.00'),

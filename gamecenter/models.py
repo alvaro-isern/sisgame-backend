@@ -32,7 +32,7 @@ class PersonMembership(TimeStampedModel):
     membership_type = models.ForeignKey(MembershipType, on_delete=models.CASCADE, related_name="personmembership_membershiptype")
 
     def __str__(self):
-        return f"{self.person.name} - {self.membership_type.name}"
+        return f"{self.person.first_name} {self.person.last_name} - {self.membership_type.name}"
 
 
 class LocalSettings(TimeStampedModel):  # Configuración por tipo de dispositivo
@@ -149,7 +149,7 @@ class Price(TimeStampedModel):
     purchase_price = models.DecimalField(max_digits=10, decimal_places=2)
 
     def __str__(self):
-        return f"{self.product.name} - {self.sale_price} por {self.unit_measurement}"
+        return f"{self.sale_price} por {self.unit_measurement}"
     
 
 class Lots(TimeStampedModel):
@@ -189,7 +189,7 @@ class ConsoleReservations(TimeStampedModel):
     advance_payment = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
 
     def __str__(self):
-        return f"Reserva {self.id} - {self.client.name} - {self.lots.product.name}"
+        return f"Reserva {self.id} - {self.client.first_name} {self.client.last_name} - {self.lots.product.name}"
 
 class ConsoleMaintenance(TimeStampedModel):
     console = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="maintenance_console")
@@ -241,7 +241,7 @@ class OpeningSalesBox(TimeStampedModel):
     date = models.DateField(auto_now_add=True)
 
     def __str__(self):
-        return f"Apertura de Caja {self.id} - {self.user.username}"
+        return f"Apertura de Caja {self.id} - {self.user.first_name} {self.user.last_name}"
 
 
 class Sale(TimeStampedModel):
@@ -275,7 +275,7 @@ class SaleDetail(TimeStampedModel):
     subtotal = models.DecimalField(max_digits=10, decimal_places=2)
 
     def __str__(self):
-        return f"Detalle de Venta {self.id} - {self.sale.client.name}"
+        return f"Detalle de Venta {self.id} - {self.sale.client.first_name} {self.sale.client.last_name}"
     
 
 class SaleBoxMovement(TimeStampedModel):
@@ -290,4 +290,4 @@ class SaleBoxMovement(TimeStampedModel):
     is_active = models.BooleanField(default=True)
 
     def __str__(self):
-        return f"Movimiento de Caja {self.id} - {self.opening_sales_box.sales_box.name}"
+        return f"Movimiento de Caja {self.id} - {self.opening_sales_box.user.first_name} {self.opening_sales_box.user.last_name}"

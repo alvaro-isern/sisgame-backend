@@ -92,9 +92,9 @@ class Command(BaseCommand):
                 )
                 
                 # Crear precio
+                unit_measurement = 'hora' if product.category.group == 'dispositivos' else 'unidad'
                 price = Price.objects.create(
-                    product=product,
-                    unit_measurement='hora' if 'categoria' in ['dispositivos'] else 'unidad',
+                    unit_measurement=unit_measurement,
                     sale_price=Decimal(str(data['price'])),
                     purchase_price=Decimal(str(data['price'] * 0.6))
                 )

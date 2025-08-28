@@ -100,8 +100,9 @@ class Command(BaseCommand):
         if popular_devices.exists():
             self.stdout.write('\n  • Dispositivos gaming disponibles:')
             for device in popular_devices:
-                price = device.prices.first()
-                if price:
+                lot_with_price = device.lots_product.filter(price__isnull=False).first()
+                if lot_with_price and lot_with_price.price:
+                    price = lot_with_price.price
                     self.stdout.write(f'    - {device.name}: S/ {price.sale_price} por {price.unit_measurement}')
                 else:
                     self.stdout.write(f'    - {device.name}: Sin precio configurado')
