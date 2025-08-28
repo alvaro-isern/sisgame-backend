@@ -212,6 +212,7 @@ class ConsoleMaintenance(TimeStampedModel):
 
 class Session(TimeStampedModel):
     client = models.ForeignKey(Person, on_delete=models.PROTECT, related_name="client_sessions")
+    number_hours = models.PositiveIntegerField(default=1)
     is_free_session = models.BooleanField(default=False)
     session_date = models.DateField(auto_now_add=True)
     start_time = models.DateTimeField(null=True, blank=True)
