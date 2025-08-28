@@ -249,6 +249,7 @@ class Sale(TimeStampedModel):
     is_anonymous = models.BooleanField(default=False)
     user = models.ForeignKey(Person, on_delete=models.CASCADE, related_name="sales_user")
     session = models.ForeignKey(Session, on_delete=models.CASCADE, related_name="sales_session", null=True, blank=True)
+    lots = models.ForeignKey(Lots, on_delete=models.CASCADE, related_name="sales_lots")
     date_sale = models.DateField(auto_now_add=True)
     subtotal = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     igv = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
@@ -268,7 +269,6 @@ class Sale(TimeStampedModel):
     
 class SaleDetail(TimeStampedModel):
     sale = models.ForeignKey(Sale, on_delete=models.CASCADE, related_name="sale_details")
-    lot = models.ForeignKey(Lots, on_delete=models.CASCADE, related_name="sale_details_lot")
     amount = models.PositiveIntegerField()
     unit_price = models.DecimalField(max_digits=10, decimal_places=2)
     discount = models.DecimalField(max_digits=10, decimal_places=2)
