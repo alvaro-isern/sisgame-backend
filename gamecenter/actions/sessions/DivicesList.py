@@ -13,15 +13,15 @@ def get_devices_status():
         dict: Estructura JSON con el estado de los dispositivos
     """
     
-    # Obtener la categoría de dispositivos
-    try:
-        devices_category = Category.objects.get(group="dispositivos")
-    except Category.DoesNotExist:
+    # Obtener todas las categorías de dispositivos
+    devices_categories = Category.objects.filter(group="dispositivos")
+    
+    if not devices_categories.exists():
         return {}
     
-    # Obtener todos los productos activos de la categoría dispositivos
+    # Obtener todos los productos activos de las categorías de dispositivos
     devices = Product.objects.filter(
-        category=devices_category,
+        category__in=devices_categories,
         is_active=True
     ).prefetch_related('lots_product__price')
     
