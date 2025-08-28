@@ -158,7 +158,6 @@ class Command(BaseCommand):
                         sale_price = Decimal(str(prod_data['price_unit']))
                     
                     price = Price.objects.create(
-                        product=product,
                         unit_measurement=unit_measurement,
                         sale_price=sale_price,
                         purchase_price=sale_price * Decimal('0.6')
@@ -309,7 +308,7 @@ class Command(BaseCommand):
                     
                     session = Session.objects.create(
                         client=gamer,
-                        hour_count=hour_count,
+                        number_hours=int(hour_count),
                         start_time=start_time,
                         end_time=end_time if i < 12 else None,  # Algunas sesiones en curso
                         total_amount=base_cost + accessory_cost,
