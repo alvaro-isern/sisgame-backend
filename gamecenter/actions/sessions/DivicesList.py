@@ -1,5 +1,5 @@
 from django.db.models import Q, Count, Case, When, IntegerField
-from gamecenter.models import Product, Category, Lots, Session, ConsoleMaintenance
+from gamecenter.models import Product, Category, Lots, Session, ProductMaintenance, SessionLots
 from decimal import Decimal
 from datetime import datetime
 
@@ -13,15 +13,15 @@ def get_devices_status():
         dict: Estructura JSON con el estado de los dispositivos
     """
     
-    # Obtener la categoría de dispositivos
-    try:
-        devices_category = Category.objects.get(group="dispositivos")
-    except Category.DoesNotExist:
+    # Obtener todas las categorías de dispositivos
+    devices_categories = Category.objects.filter(group="dispositivos")
+    
+    if not devices_categories.exists():
         return {}
     
-    # Obtener todos los productos activos de la categoría dispositivos
+    # Obtener todos los productos activos de las categorías de dispositivos
     devices = Product.objects.filter(
-        category=devices_category,
+        category__in=devices_categories,
         is_active=True
     ).prefetch_related('lots_product__price')
     
@@ -30,10 +30,9 @@ def get_devices_status():
     for device in devices:
         device_name = device.name
         
-        # Obtener todos los lotes del dispositivo
+        # Obtener todos los lotes del dispositivo (tanto disponibles como no disponibles para contar correctamente)
         lots = Lots.objects.filter(
-            product=device,
-            state="available"
+            product=device
         ).select_related('price')
         
         # Inicializar contadores
@@ -58,6 +57,9 @@ def get_devices_status():
             hourly_rate = "0.00"
             if lot.price and lot.price.unit_measurement == "hora":
                 hourly_rate = str(lot.price.sale_price)
+            elif lot.price and lot.price.unit_measurement == "min":
+                # Convertir precio por minuto a precio por hora
+                hourly_rate = str(lot.price.sale_price * 60)
             
             # Crear el objeto del dispositivo
             device_info = {
@@ -94,8 +96,8 @@ def get_device_status(lot):
     """
     
     # Verificar si está en mantenimiento
-    active_maintenance = ConsoleMaintenance.objects.filter(
-        console=lot.product,
+    active_maintenance = ProductMaintenance.objects.filter(
+        product=lot.product,
         start_date__lte=datetime.now().date(),
         end_date__isnull=True
     ).exists()
@@ -103,16 +105,20 @@ def get_device_status(lot):
     if active_maintenance:
         return "maintenance"
     
-    # Verificar si está en uso (sesión activa)
-    active_session = Session.objects.filter(
-        lots__lots=lot,
-        state="en curso"
+    # Verificar si está en uso (sesión activa) usando SessionLots
+    active_session = SessionLots.objects.filter(
+        lots=lot,
+        session__state="en curso"
     ).exists()
     
     if active_session:
         return "in_use"
     
-    # Si no está en mantenimiento ni en uso, está disponible
+    # Verificar el estado del lote
+    if lot.state != "available":
+        return "maintenance"
+    
+    # Si no está en mantenimiento ni en uso, y está disponible, entonces está disponible
     return "available"
 
 

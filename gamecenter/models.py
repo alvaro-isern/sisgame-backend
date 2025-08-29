@@ -32,7 +32,7 @@ class PersonMembership(TimeStampedModel):
     membership_type = models.ForeignKey(MembershipType, on_delete=models.CASCADE, related_name="personmembership_membershiptype")
 
     def __str__(self):
-        return f"{self.person.name} - {self.membership_type.name}"
+        return f"{self.person.first_name} {self.person.last_name} - {self.membership_type.name}"
 
 
 class LocalSettings(TimeStampedModel):  # Configuración por tipo de dispositivo
@@ -129,6 +129,13 @@ class Product(TimeStampedModel):
     def __str__(self):
         return self.name
 
+class ProductDevices(TimeStampedModel):
+    device = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="product_devices")
+    code = models.CharField(max_length=100, null=True, blank=True)
+
+    def __str__(self):
+        return f"{self.device.name} - {self.code}"
+
 class ProductGame(TimeStampedModel):
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="product_game")
     game = models.ForeignKey(Game, on_delete=models.CASCADE, related_name="game_product")
@@ -149,7 +156,7 @@ class Price(TimeStampedModel):
     purchase_price = models.DecimalField(max_digits=10, decimal_places=2)
 
     def __str__(self):
-        return f"{self.product.name} - {self.sale_price} por {self.unit_measurement}"
+        return f"{self.sale_price} por {self.unit_measurement}"
     
 
 class Lots(TimeStampedModel):
@@ -189,10 +196,10 @@ class ConsoleReservations(TimeStampedModel):
     advance_payment = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
 
     def __str__(self):
-        return f"Reserva {self.id} - {self.client.name} - {self.lots.product.name}"
+        return f"Reserva {self.id} - {self.client.first_name} {self.client.last_name} - {self.lots.product.name}"
 
-class ConsoleMaintenance(TimeStampedModel):
-    console = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="maintenance_console")
+class ProductMaintenance(TimeStampedModel):
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="maintenance_product")
     maintenance_date = models.DateField(auto_now_add=True)
     maintenance_reason = models.CharField(max_length=255, choices=[
         ("reparación", "Reparación"),
@@ -212,6 +219,8 @@ class ConsoleMaintenance(TimeStampedModel):
 
 class Session(TimeStampedModel):
     client = models.ForeignKey(Person, on_delete=models.PROTECT, related_name="client_sessions")
+    product_devices = models.ForeignKey(ProductDevices, on_delete=models.CASCADE, related_name="session_product_devices")
+    number_hours = models.PositiveIntegerField(default=1)
     is_free_session = models.BooleanField(default=False)
     session_date = models.DateField(auto_now_add=True)
     start_time = models.DateTimeField(null=True, blank=True)
@@ -222,6 +231,9 @@ class Session(TimeStampedModel):
         ("en curso", "En curso"),
         ("finalizado", "Finalizado"),
     ], default="en curso")
+
+    def __str__(self):
+        return f"Sesión {self.id} - {self.client.first_name} {self.client.last_name} - {self.product_devices.device.name} - {self.product_devices.code}"
 
 
 class SessionLots(TimeStampedModel):
@@ -240,23 +252,18 @@ class OpeningSalesBox(TimeStampedModel):
     date = models.DateField(auto_now_add=True)
 
     def __str__(self):
-        return f"Apertura de Caja {self.id} - {self.user.username}"
+        return f"Apertura de Caja {self.id} - {self.user.first_name} {self.user.last_name}"
 
 
 class Sale(TimeStampedModel):
     client = models.ForeignKey(Person, on_delete=models.CASCADE, related_name="sales_client")
     is_anonymous = models.BooleanField(default=False)
     user = models.ForeignKey(Person, on_delete=models.CASCADE, related_name="sales_user")
-    session = models.ForeignKey(Session, on_delete=models.CASCADE, related_name="sales_session", null=True, blank=True)
+    sessionlots = models.ForeignKey(SessionLots, on_delete=models.CASCADE, related_name="sales_lots")
     date_sale = models.DateField(auto_now_add=True)
     subtotal = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     igv = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     total = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
-    payment_method = models.CharField(max_length=50, choices=[
-        ("efectivo", "Efectivo"),
-        ("tarjeta", "Tarjeta"),
-        ("transferencia", "Transferencia"),
-    ], null=True, blank=True)
     state = models.CharField(max_length=50, choices=[
         ("pendiente", "Pendiente"),
         ("completado", "Completado"),
@@ -264,17 +271,40 @@ class Sale(TimeStampedModel):
 
     def __str__(self):
         return f"Venta {self.id} - {self.client}"
-    
+
+
+class Payment(TimeStampedModel):
+    """Modelo para los diferentes métodos de pago disponibles"""
+    payment_method = models.CharField(max_length=50, choices=[
+        ("efectivo", "Efectivo"),
+        ("tarjeta_credito", "Tarjeta de Crédito"),
+        ("tarjeta_debito", "Tarjeta de Débito"),
+        ("transferencia", "Transferencia Bancaria"),
+        ("yape", "Yape"),
+        ("plin", "Plin"),
+        ("paypal", "PayPal"),
+        ("otro", "Otro"),
+    ], null=True, blank=True)
+    amount = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    payment_date = models.DateTimeField(auto_now_add=True, null=True, blank=True)
+    notes = models.TextField(blank=True, null=True, help_text="Observaciones adicionales del pago")
+
+
+class PaymentSale(TimeStampedModel):
+    """Tabla intermedia para manejar múltiples pagos por venta"""
+    sale = models.ForeignKey(Sale, on_delete=models.CASCADE, related_name="payment_sales")
+    payment = models.ForeignKey(Payment, on_delete=models.PROTECT, related_name="payment_sales")
+
+
 class SaleDetail(TimeStampedModel):
     sale = models.ForeignKey(Sale, on_delete=models.CASCADE, related_name="sale_details")
-    lot = models.ForeignKey(Lots, on_delete=models.CASCADE, related_name="sale_details_lot")
+    lots = models.ForeignKey(Lots, on_delete=models.CASCADE, related_name="sale_details")
     amount = models.PositiveIntegerField()
     unit_price = models.DecimalField(max_digits=10, decimal_places=2)
     discount = models.DecimalField(max_digits=10, decimal_places=2)
-    subtotal = models.DecimalField(max_digits=10, decimal_places=2)
 
     def __str__(self):
-        return f"Detalle de Venta {self.id} - {self.sale.client.name}"
+        return f"Detalle de Venta {self.id} - {self.sale.client.first_name} {self.sale.client.last_name}"
     
 
 class SaleBoxMovement(TimeStampedModel):
@@ -289,4 +319,4 @@ class SaleBoxMovement(TimeStampedModel):
     is_active = models.BooleanField(default=True)
 
     def __str__(self):
-        return f"Movimiento de Caja {self.id} - {self.opening_sales_box.sales_box.name}"
+        return f"Movimiento de Caja {self.id} - {self.opening_sales_box.user.first_name} {self.opening_sales_box.user.last_name}"
