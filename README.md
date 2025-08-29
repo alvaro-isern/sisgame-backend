@@ -1,7 +1,5 @@
 # README.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
-
 ## Project Overview
 
 This is a Django REST Framework backend for a gaming center management system called "sisgame-backend". The system manages gaming devices, customer sessions, sales, inventory, and maintenance operations for a gaming business.
