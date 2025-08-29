@@ -9,3 +9,5 @@ from .SubsidiarySerializer import SubsidiarySerializer
 from .SessionSerializer import SessionSerializer
 from .SaleSerializer import SaleSerializer
 from .GameSerializer import GameSerializer
+from .ProductMaintenanceSerializer import ProductMaintenanceSerializer
+from .SessionLotsSerializer import SessionLotsSerializer

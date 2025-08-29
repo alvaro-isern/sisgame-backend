@@ -4,7 +4,7 @@ from decimal import Decimal
 from datetime import date, datetime, timedelta
 
 from gamecenter.models import (
-    Person, LocalSettings, Subsidiary, Category, Product, Price, Lots, Game
+    Person, LocalSettings, Subsidiary, Category, Product, Price, Lots, Game, ProductGame, ProductDevices
 )
 
 
@@ -58,7 +58,10 @@ class Command(BaseCommand):
             
             persons = []
             for data in persons_data:
-                person = Person.objects.create(**data)
+                person, created = Person.objects.get_or_create(
+                    email=data['email'],
+                    defaults=data
+                )
                 persons.append(person)
             
             # Categorías básicas
@@ -72,7 +75,10 @@ class Command(BaseCommand):
             
             categories = []
             for data in categories_data:
-                category = Category.objects.create(**data)
+                category, created = Category.objects.get_or_create(
+                    name=data['name'],
+                    group=data['group']
+                )
                 categories.append(category)
             
             # Productos básicos
@@ -86,29 +92,37 @@ class Command(BaseCommand):
             
             products = []
             for data in products_data:
-                product = Product.objects.create(
+                product, created = Product.objects.get_or_create(
                     name=data['name'],
                     category=categories[data['category_idx']]
                 )
                 
-                # Crear precio
-                unit_measurement = 'hora' if product.category.group == 'dispositivos' else 'unidad'
-                price = Price.objects.create(
-                    unit_measurement=unit_measurement,
-                    sale_price=Decimal(str(data['price'])),
-                    purchase_price=Decimal(str(data['price'] * 0.6))
-                )
-                
-                # Crear lote
-                lot = Lots.objects.create(
-                    product=product,
-                    lot_number=f"TEST-{product.id:03d}",
-                    initial_stock=20,
-                    current_stock=15,
-                    price=price,
-                    state='available',
-                    entry_date=date.today()
-                )
+                if created:
+                    # Crear precio
+                    unit_measurement = 'hora' if product.category.group == 'dispositivos' else 'unidad'
+                    price = Price.objects.create(
+                        unit_measurement=unit_measurement,
+                        sale_price=Decimal(str(data['price'])),
+                        purchase_price=Decimal(str(data['price'] * 0.6))
+                    )
+                    
+                    # Crear lote
+                    lot = Lots.objects.create(
+                        product=product,
+                        lot_number=f"TEST-{product.id:03d}",
+                        initial_stock=20,
+                        current_stock=15,
+                        price=price,
+                        state='available',
+                        entry_date=date.today()
+                    )
+                    
+                    # Crear ProductDevices para dispositivos gaming
+                    if product.category.group == 'dispositivos':
+                        ProductDevices.objects.create(
+                            device=product,
+                            code=f"DEV-{product.id:03d}"
+                        )
                 
                 products.append(product)
             
@@ -137,8 +151,26 @@ class Command(BaseCommand):
                 }
             ]
             
+            games = []
             for data in games_data:
-                Game.objects.create(**data)
+                game, created = Game.objects.get_or_create(
+                    name=data['name'],
+                    release_year=data['release_year'],
+                    defaults=data
+                )
+                games.append(game)
+                if created:
+                    self.stdout.write(f'✓ Juego creado: {game.name}')
+            
+            # Crear relaciones entre productos gaming y juegos
+            gaming_products = [p for p in products if p.category.group == 'dispositivos']
+            for product in gaming_products:
+                # Asociar algunos juegos a cada producto gaming
+                for game in games[:2]:  # Primeros 2 juegos para cada producto
+                    ProductGame.objects.get_or_create(
+                        product=product,
+                        game=game
+                    )
             
             self.stdout.write(
                 self.style.SUCCESS(
@@ -148,6 +180,7 @@ class Command(BaseCommand):
                     f'  - {len(persons)} personas\n'
                     f'  - {len(categories)} categorías\n'
                     f'  - {len(products)} productos con precios y lotes\n'
-                    f'  - {len(games_data)} juegos'
+                    f'  - {len(games_data)} juegos\n'
+                    f'  - {ProductGame.objects.count()} relaciones producto-juego'
                 )
             )

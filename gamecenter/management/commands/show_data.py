@@ -1,7 +1,7 @@
 from django.core.management.base import BaseCommand
 from gamecenter.models import (
     Person, LocalSettings, Subsidiary, Category, Product, Price, Lots, Game,
-    Session, ConsoleReservations, ConsoleMaintenance, Sale, User
+    Session, ConsoleReservations, ProductMaintenance, Sale, User
 )
 
 
@@ -71,7 +71,7 @@ class Command(BaseCommand):
             self.stdout.write(f'    - Pendientes: {pending_reservations}')
         
         # Mantenimiento
-        self.stdout.write(f'  • Mantenimientos registrados: {ConsoleMaintenance.objects.count()}')
+        self.stdout.write(f'  • Mantenimientos registrados: {ProductMaintenance.objects.count()}')
         
         # Ventas
         sales_count = Sale.objects.count()

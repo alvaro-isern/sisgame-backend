@@ -6,7 +6,7 @@ import random
 
 from gamecenter.models import (
     LocalSettings, Subsidiary, Category, Product, Price, Lots, Game, Person,
-    Session, SessionLots, ConsoleReservations, ConsoleMaintenance
+    Session, SessionLots, ConsoleReservations, ProductMaintenance, ProductDevices
 )
 
 
@@ -175,32 +175,18 @@ class Command(BaseCommand):
                         observations=f"Equipo gaming de alta calidad - {product.name}"
                     )
                     
+                    # Crear ProductDevices para dispositivos gaming
+                    if category.group == 'dispositivos':
+                        ProductDevices.objects.create(
+                            device=product,
+                            code=f"GAMING-DEV-{product.id:03d}"
+                        )
+                    
                     products.append(product)
                     self.stdout.write(f'✓ Producto gaming creado: {product.name}')
             
-            # Juegos populares
+            # Juegos populares (evitando duplicados con seed_basic)
             popular_games = [
-                {
-                    'name': 'FIFA 24',
-                    'gender': 'sports',
-                    'release_year': 2023,
-                    'description': 'El simulador de fútbol más realista con todos los equipos y ligas oficiales.',
-                    'game_material_type': 'digital'
-                },
-                {
-                    'name': 'Call of Duty: Modern Warfare III',
-                    'gender': 'shooter',
-                    'release_year': 2023,
-                    'description': 'El shooter más intenso con modos multijugador y campaña épica.',
-                    'game_material_type': 'digital'
-                },
-                {
-                    'name': 'Fortnite',
-                    'gender': 'shooter',
-                    'release_year': 2017,
-                    'description': 'Battle Royale gratuito con construcción y eventos especiales.',
-                    'game_material_type': 'digital'
-                },
                 {
                     'name': 'Grand Theft Auto V',
                     'gender': 'action',
@@ -258,13 +244,6 @@ class Command(BaseCommand):
                     'game_material_type': 'digital'
                 },
                 {
-                    'name': 'Super Mario Odyssey',
-                    'gender': 'adventure',
-                    'release_year': 2017,
-                    'description': 'Aventura de plataformas con Mario y Cappy.',
-                    'game_material_type': 'fisico'
-                },
-                {
                     'name': 'The Legend of Zelda: Breath of the Wild',
                     'gender': 'adventure',
                     'release_year': 2017,
@@ -277,6 +256,7 @@ class Command(BaseCommand):
             for game_data in popular_games:
                 game, created = Game.objects.get_or_create(
                     name=game_data['name'],
+                    release_year=game_data['release_year'],
                     defaults=game_data
                 )
                 games.append(game)
@@ -289,25 +269,34 @@ class Command(BaseCommand):
             )]
             
             if console_lots and gamers:
+                from django.utils import timezone
                 for i in range(15):  # 15 sesiones de gaming
                     gamer = random.choice(gamers)
                     console_lot = random.choice(console_lots)
                     
+                    # Verificar si existe ProductDevices para este producto
+                    if not hasattr(console_lot.product, 'product_devices') or not console_lot.product.product_devices.exists():
+                        continue
+                    
                     # Horarios realistas de gaming
                     days_ago = random.randint(0, 30)
                     hour = random.choice([14, 15, 16, 17, 18, 19, 20, 21, 22])  # Horarios populares
-                    start_time = datetime.now().replace(hour=hour, minute=0, second=0) - timedelta(days=days_ago)
+                    start_time = timezone.now().replace(hour=hour, minute=0, second=0) - timezone.timedelta(days=days_ago)
                     
                     # Duración realista (1-6 horas)
                     hour_count = Decimal(str(random.choice([1.0, 1.5, 2.0, 2.5, 3.0, 4.0, 5.0, 6.0])))
-                    end_time = start_time + timedelta(hours=float(hour_count))
+                    end_time = start_time + timezone.timedelta(hours=float(hour_count))
                     
                     # Calcular costos
                     base_cost = hour_count * console_lot.price.sale_price
                     accessory_cost = Decimal(str(random.uniform(0, 25.0)))  # Snacks, bebidas, etc.
                     
+                    # Obtener el ProductDevices asociado
+                    product_device = console_lot.product.product_devices.first()
+                    
                     session = Session.objects.create(
                         client=gamer,
+                        product_devices=product_device,
                         number_hours=int(hour_count),
                         start_time=start_time,
                         end_time=end_time if i < 12 else None,  # Algunas sesiones en curso
@@ -333,7 +322,7 @@ class Command(BaseCommand):
                     # Reservas para los próximos días
                     days_ahead = random.randint(0, 7)
                     hour = random.choice([15, 16, 17, 18, 19, 20, 21])
-                    start_hour = datetime.now().replace(hour=hour, minute=0, second=0) + timedelta(days=days_ahead)
+                    start_hour = timezone.now().replace(hour=hour, minute=0, second=0) + timezone.timedelta(days=days_ahead)
                     
                     hour_count = Decimal(str(random.choice([2.0, 3.0, 4.0, 5.0])))
                     advance_payment = console_lot.price.sale_price * hour_count * Decimal('0.3')  # 30% adelanto
@@ -353,8 +342,8 @@ class Command(BaseCommand):
             # Crear algunos mantenimientos
             gaming_devices = Product.objects.filter(category__group='dispositivos')[:5]
             for device in gaming_devices:
-                maintenance = ConsoleMaintenance.objects.create(
-                    console=device,
+                maintenance = ProductMaintenance.objects.create(
+                    product=device,
                     maintenance_reason=random.choice(['limpieza', 'actualización', 'reparación']),
                     start_date=date.today() - timedelta(days=random.randint(1, 90)),
                     end_date=date.today() - timedelta(days=random.randint(0, 10)),
@@ -373,6 +362,6 @@ class Command(BaseCommand):
                     f'  - {len(games)} juegos populares\n'
                     f'  - {Session.objects.count()} sesiones de gaming\n'
                     f'  - {ConsoleReservations.objects.count()} reservas\n'
-                    f'  - {ConsoleMaintenance.objects.count()} mantenimientos'
+                    f'  - {ProductMaintenance.objects.count()} mantenimientos'
                 )
             )

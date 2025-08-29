@@ -9,6 +9,7 @@ from .ProductView import ProductViewSet
 from .LotView import LotViewSet
 from .SessionView import SessionViewSet
 from .GameView import GameViewSet
-from .ConsoleMaintenanceView import ConsoleMaintenanceViewSet
+from .ProductMaintenanceView import ProductMaintenanceViewSet
 from .SaleView import SaleViewSet
 from .SaleDetailView import SaleDetailViewSet
+from .SessionLotsView import SessionLotsViewSet

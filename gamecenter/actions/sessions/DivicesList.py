@@ -1,5 +1,5 @@
 from django.db.models import Q, Count, Case, When, IntegerField
-from gamecenter.models import Product, Category, Lots, Session, ConsoleMaintenance, SessionLots
+from gamecenter.models import Product, Category, Lots, Session, ProductMaintenance, SessionLots
 from decimal import Decimal
 from datetime import datetime
 
@@ -96,8 +96,8 @@ def get_device_status(lot):
     """
     
     # Verificar si está en mantenimiento
-    active_maintenance = ConsoleMaintenance.objects.filter(
-        console=lot.product,
+    active_maintenance = ProductMaintenance.objects.filter(
+        product=lot.product,
         start_date__lte=datetime.now().date(),
         end_date__isnull=True
     ).exists()

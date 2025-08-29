@@ -6,8 +6,9 @@ import random
 
 from gamecenter.models import (
     Person, MembershipType, PersonMembership, LocalSettings, Subsidiary, User,
-    Game, Category, Product, Price, Lots, ConsoleReservations, ConsoleMaintenance,
-    Session, SessionLots, OpeningSalesBox, Sale, SaleDetail, SaleBoxMovement
+    Game, Category, Product, Price, Lots, ConsoleReservations, ProductMaintenance,
+    Session, SessionLots, OpeningSalesBox, Sale, SaleDetail, SaleBoxMovement,
+    Payment, PaymentSale, ProductDevices
 )
 
 
@@ -50,6 +51,7 @@ class Command(BaseCommand):
             sessions = self.create_sessions(persons, lots)
             reservations = self.create_console_reservations(persons, lots)
             sales = self.create_sales(persons, sessions)
+            payments = self.create_payments(sales)
             sale_details = self.create_sale_details(sales, lots)
             
             self.stdout.write(self.style.SUCCESS('¡Datos de prueba creados exitosamente!'))
@@ -57,8 +59,8 @@ class Command(BaseCommand):
     def clear_data(self):
         """Eliminar todos los datos existentes"""
         models_to_clear = [
-            SaleBoxMovement, SaleDetail, Sale, ConsoleReservations, 
-            SessionLots, Session, ConsoleMaintenance, OpeningSalesBox,
+            SaleBoxMovement, SaleDetail, PaymentSale, Payment, Sale, ConsoleReservations, 
+            SessionLots, Session, ProductMaintenance, OpeningSalesBox,
             Lots, Price, Game, Product, Category, PersonMembership,
             User, Person, MembershipType, Subsidiary, LocalSettings
         ]
@@ -308,13 +310,22 @@ class Command(BaseCommand):
             # Buscar categoría por grupo
             category = next((c for c in categories if c.group == data['category']), categories[0])
             
-            product = Product.objects.create(
+            product, created = Product.objects.get_or_create(
                 name=data['name'],
                 category=category,
-                image=f"https://via.placeholder.com/300x200?text={data['name'].replace(' ', '+')}"
+                defaults={'image': f"https://via.placeholder.com/300x200?text={data['name'].replace(' ', '+')}"}
             )
+            
+            # Crear ProductDevices para dispositivos gaming
+            if created and (category.group == 'dispositivos'):
+                ProductDevices.objects.create(
+                    device=product,
+                    code=f"DEV-{product.id:03d}"
+                )
+            
             products.append(product)
-            self.stdout.write(f'✓ Producto creado: {product.name}')
+            if created:
+                self.stdout.write(f'✓ Producto creado: {product.name}')
         
         return products
 
@@ -430,13 +441,13 @@ class Command(BaseCommand):
         return games
 
     def create_console_maintenances(self, products):
-        """Crear mantenimientos de consolas"""
+        """Crear mantenimientos de productos"""
         console_products = [p for p in products if 'consola' in p.name.lower() or 'pc gaming' in p.name.lower()]
         
         maintenances = []
         for console in console_products[:3]:  # Solo algunos mantenimientos
-            maintenance = ConsoleMaintenance.objects.create(
-                console=console,
+            maintenance = ProductMaintenance.objects.create(
+                product=console,
                 maintenance_reason=random.choice(['limpieza', 'reparación', 'actualización']),
                 start_date=date.today() - timedelta(days=random.randint(1, 30)),
                 end_date=date.today() - timedelta(days=random.randint(0, 5)),
@@ -466,18 +477,36 @@ class Command(BaseCommand):
 
     def create_sessions(self, persons, lots):
         """Crear sesiones de juego"""
-        console_lots = [l for l in lots if 'consola' in l.product.name.lower() or 'pc gaming' in l.product.name.lower()]
+        from django.utils import timezone
+        
+        # Obtener solo lotes de dispositivos gaming con ProductDevices asociados
+        console_lots = []
+        for lot in lots:
+            if 'consola' in lot.product.name.lower() or 'pc gaming' in lot.product.name.lower():
+                # Verificar si existe ProductDevices para este producto
+                if hasattr(lot.product, 'product_devices') and lot.product.product_devices.exists():
+                    console_lots.append(lot)
+        
+        if not console_lots:
+            self.stdout.write(self.style.WARNING('No hay dispositivos gaming con ProductDevices disponibles para crear sesiones'))
+            return []
         
         sessions = []
         for i in range(8):  # 8 sesiones
-            start_time = datetime.now() - timedelta(days=random.randint(0, 7), hours=random.randint(0, 12))
+            start_time = timezone.now() - timezone.timedelta(days=random.randint(0, 7), hours=random.randint(0, 12))
             hour_count = Decimal(str(random.uniform(1.0, 4.0)))
+            
+            # Seleccionar un lote de consola
+            selected_lot = random.choice(console_lots)
+            # Obtener el ProductDevices asociado
+            product_device = selected_lot.product.product_devices.first()
             
             session = Session.objects.create(
                 client=random.choice(persons),
+                product_devices=product_device,
                 number_hours=int(hour_count),
                 start_time=start_time,
-                end_time=start_time + timedelta(hours=float(hour_count)) if i < 6 else None,
+                end_time=start_time + timezone.timedelta(hours=float(hour_count)) if i < 6 else None,
                 total_amount=hour_count * Decimal('10.00'),
                 accessory_amount=Decimal(str(random.uniform(0, 15.0))),
                 state='finalizado' if i < 6 else 'en curso'
@@ -487,7 +516,7 @@ class Command(BaseCommand):
             # Crear SessionLots
             SessionLots.objects.create(
                 session=session,
-                lots=random.choice(console_lots)
+                lots=selected_lot
             )
             
             self.stdout.write(f'✓ Sesión creada: {session}')
@@ -496,6 +525,8 @@ class Command(BaseCommand):
 
     def create_console_reservations(self, persons, lots):
         """Crear reservas de consolas"""
+        from django.utils import timezone
+        
         console_lots = [l for l in lots if 'consola' in l.product.name.lower()]
         
         reservations = []
@@ -504,7 +535,7 @@ class Command(BaseCommand):
                 client=random.choice(persons),
                 lots=random.choice(console_lots),
                 hour_count=Decimal(str(random.uniform(2.0, 6.0))),
-                start_hour=datetime.now() + timedelta(days=random.randint(0, 7), hours=random.randint(9, 20)),
+                start_hour=timezone.now() + timezone.timedelta(days=random.randint(0, 7), hours=random.randint(9, 20)),
                 end_hour=None,
                 accessory_count=random.randint(1, 4),
                 state=random.choice(['reservado', 'completado', 'cancelado']),
@@ -518,22 +549,72 @@ class Command(BaseCommand):
     def create_sales(self, persons, sessions):
         """Crear ventas"""
         sales = []
+        # Obtener SessionLots disponibles
+        session_lots = SessionLots.objects.all()
+        
+        if not session_lots.exists():
+            self.stdout.write(self.style.WARNING('No hay SessionLots disponibles para crear ventas'))
+            return sales
+        
         for i in range(10):  # 10 ventas
             sale = Sale.objects.create(
                 client=random.choice(persons),
                 is_anonymous=random.choice([True, False]),
                 user=persons[0],  # Usuario vendedor
-                session=random.choice(sessions) if random.choice([True, False]) else None,
+                sessionlots=random.choice(session_lots),  # Siempre asignar un sessionlots
                 subtotal=Decimal(str(random.uniform(20.0, 150.0))),
                 igv=Decimal('0.00'),  # Sin IGV por ahora
                 total=Decimal(str(random.uniform(20.0, 150.0))),
-                payment_method=random.choice(['efectivo', 'tarjeta', 'transferencia']),
                 state='completado'
             )
             sales.append(sale)
             self.stdout.write(f'✓ Venta creada: {sale}')
         
         return sales
+
+    def create_payments(self, sales):
+        """Crear pagos para las ventas"""
+        payment_methods = [
+            'efectivo', 'tarjeta_credito', 'tarjeta_debito', 
+            'transferencia', 'yape', 'plin', 'otro'
+        ]
+        
+        for sale in sales:
+            # Decidir si es un pago único o múltiple
+            if random.choice([True, False, False]):  # 33% chance de pago múltiple
+                # Pago múltiple (dividir en 2 pagos)
+                amount1 = sale.total * Decimal('0.6')
+                amount2 = sale.total - amount1
+                
+                payment1 = Payment.objects.create(
+                    payment_method=random.choice(payment_methods),
+                    amount=amount1,
+                    notes=f"Pago parcial 1 para venta {sale.id}"
+                )
+                
+                payment2 = Payment.objects.create(
+                    payment_method=random.choice(payment_methods),
+                    amount=amount2,
+                    notes=f"Pago parcial 2 para venta {sale.id}"
+                )
+                
+                PaymentSale.objects.create(sale=sale, payment=payment1)
+                PaymentSale.objects.create(sale=sale, payment=payment2)
+                
+                self.stdout.write(f'✓ Pagos múltiples creados para venta {sale.id}')
+            else:
+                # Pago único
+                payment = Payment.objects.create(
+                    payment_method=random.choice(payment_methods),
+                    amount=sale.total,
+                    notes=f"Pago completo para venta {sale.id}"
+                )
+                
+                PaymentSale.objects.create(sale=sale, payment=payment)
+                
+                self.stdout.write(f'✓ Pago único creado para venta {sale.id}')
+        
+        return Payment.objects.all()
 
     def create_sale_details(self, sales, lots):
         """Crear detalles de venta"""
@@ -546,15 +627,14 @@ class Command(BaseCommand):
                 amount = random.randint(1, 3)
                 unit_price = lot.price.sale_price
                 discount = Decimal('0.00')
-                subtotal = amount * unit_price - discount
                 
                 SaleDetail.objects.create(
                     sale=sale,
-                    lot=lot,
+                    lots=lot,  # Cambiar lot por lots
                     amount=amount,
                     unit_price=unit_price,
-                    discount=discount,
-                    subtotal=subtotal
+                    discount=discount
+                    # Remover subtotal ya que no existe en el modelo
                 )
                 
                 self.stdout.write(f'✓ Detalle de venta creado: {sale.id} - {lot.product.name}')
