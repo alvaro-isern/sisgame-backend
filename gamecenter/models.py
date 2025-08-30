@@ -90,12 +90,7 @@ class Game(TimeStampedModel):
         ("puzzle", "Puzzle"),
         ("horror", "Horror"),
         ("other", "Otro"),
-    ])
-    plataform = models.CharField(max_length=50, choices=[
-        ("playstation5", "PlayStation 5"),
-        ("playstation4", "PlayStation 4"),
-        ("gming_pc", "Gaming PC"),
-        ("tablet", "Tablet")])
+    ])    
         
     release_year = models.PositiveIntegerField()  # Solo año
     description = models.TextField(blank=True)
@@ -143,14 +138,14 @@ class ProductDevices(TimeStampedModel):
         return f"{self.device.name} - {self.code}"
 
 class ProductGame(TimeStampedModel):
-    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="product_game")
+    device = models.ForeignKey(ProductDevices, on_delete=models.CASCADE, related_name="game_devices")
     game = models.ForeignKey(Game, on_delete=models.CASCADE, related_name="game_product")
 
     class Meta:
-        unique_together = ("product", "game")
+        unique_together = ("device", "game")
 
     def __str__(self):
-        return f"{self.product.name} - {self.game.name}"
+        return f"{self.device.device.name} - {self.game.name}"
 
 class Price(TimeStampedModel):
     unit_measurement = models.CharField(max_length=100, choices=[

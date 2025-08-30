@@ -12,3 +12,6 @@ from .GameView import GameViewSet
 from .ProductMaintenanceView import ProductMaintenanceViewSet
 from .SaleView import SaleViewSet
 from .SaleDetailView import SaleDetailViewSet
+from .SessionLotsView import SessionLotsViewSet
+from .ProductGameView import ProductGameViewSet
+from .ProductDevicesView import ProductDevicesViewSet

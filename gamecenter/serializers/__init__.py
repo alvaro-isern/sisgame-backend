@@ -11,3 +11,5 @@ from .SaleSerializer import SaleSerializer
 from .GameSerializer import GameSerializer
 from .ProductMaintenanceSerializer import ProductMaintenanceSerializer
 from .SessionLotsSerializer import SessionLotsSerializer
+from .ProductGameSerializer import ProductGameSerializer
+from .ProductDevicesSerializer import ProductDevicesSerializer
