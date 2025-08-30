@@ -17,3 +17,7 @@ router.register(r'productmaintenance', ProductMaintenanceViewSet, basename='prod
 router.register(r'sale', SaleViewSet, basename='sale')
 router.register(r'saledetail', SaleDetailViewSet, basename='saledetail')
 router.register(r'sessionlots', SessionLotsViewSet, basename='sessionlots')
+router.register(r'productgame', ProductGameViewSet, basename='productgame')
+router.register(r'productdevices', ProductDevicesViewSet, basename='productdevices')
+
+
